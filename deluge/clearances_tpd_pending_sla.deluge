@@ -1,0 +1,76 @@
+void automation.TPD_Pending_SLA(String booking_id,String severity)
+{
+try
+{
+	if(booking_id == null || booking_id.toString().trim() == "" || severity == null || severity.toString().trim() == "") return;
+	bookingId = booking_id.toString().trim();
+	requestedSeverity = severity.toString().trim();
+	if(!requestedSeverity.equalsIgnoreCase("Delayed") && !requestedSeverity.equalsIgnoreCase("Critical"))
+	{
+		info "TPD_PENDING_SLA ABORTED | Invalid Severity: " + requestedSeverity;
+		return;
+	}
+	if(requestedSeverity.equalsIgnoreCase("Delayed")) requestedSeverity = "Delayed";
+	else requestedSeverity = "Critical";
+	booking = zoho.crm.getRecordById("Deals",bookingId.toLong());
+	if(booking == null || booking.isEmpty()) return;
+	stageValue = booking.get("Stage");
+	if(stageValue == null || !stageValue.toString().trim().equalsIgnoreCase("OBL Collected"))
+	{
+		info "TPD_PENDING_SLA SKIPPED | Booking: " + bookingId + " | Current Stage: " + stageValue + " | Expected: OBL Collected";
+		return;
+	}
+	clearanceCriteria = "(Booking:equals:" + bookingId + ")";
+	clearances = zoho.crm.searchRecords("Clearances",clearanceCriteria);
+	if(clearances == null || clearances.isEmpty())
+	{
+		info "TPD_PENDING_SLA SKIPPED | Booking: " + bookingId + " | No linked Clearance.";
+		return;
+	}
+	for each clearanceSummary in clearances
+	{
+		clearanceId = clearanceSummary.get("id");
+		if(clearanceId == null) continue;
+		clearance = zoho.crm.getRecordById("Clearances",clearanceId.toLong());
+		if(clearance == null || clearance.isEmpty()) continue;
+		statusValue = clearance.get("Status");
+		statusText = "";
+		if(statusValue != null) statusText = statusValue.toString().trim();
+		if(statusText.equalsIgnoreCase("Pending Documents Delivery") || statusText.equalsIgnoreCase("Cleared"))
+		{
+			info "TPD_PENDING_SLA SKIPPED | Clearance: " + clearanceId + " | Status: " + statusText;
+			continue;
+		}
+		existingTags = clearance.get("Tag");
+		if(existingTags == null) existingTags = List();
+		tagAlreadyExists = false;
+		for each tg in existingTags
+		{
+			if(tg != null)
+			{
+				nameValue = tg.get("name");
+				if(nameValue != null && nameValue.toString().trim().equalsIgnoreCase(requestedSeverity)) tagAlreadyExists = true;
+			}
+		}
+		if(tagAlreadyExists)
+		{
+			info "TPD_PENDING_SLA SKIPPED | Clearance: " + clearanceId + " | Tag already exists: " + requestedSeverity;
+			continue;
+		}
+		finalTags = List();
+		for each existingTag in existingTags finalTags.add(existingTag);
+		newTag = Map();
+		newTag.put("name",requestedSeverity);
+		finalTags.add(newTag);
+		updatePayload = Map();
+		updatePayload.put("Tag",finalTags);
+		updateResponse = zoho.crm.updateRecord("Clearances",clearanceId.toLong(),updatePayload);
+		verify = zoho.crm.getRecordById("Clearances",clearanceId.toLong());
+		info "TPD_PENDING_SLA RESULT | Booking: " + bookingId + " | Clearance: " + clearanceId + " | Status: " + statusText + " | Severity: " + requestedSeverity + " | Update: " + updateResponse + " | Tags After: " + verify.get("Tag");
+	}
+}
+catch(e)
+{
+	info "TPD_PENDING_SLA ERROR | Booking: " + booking_id + " | Severity: " + severity + " | Line: " + e.lineNo + " | Message: " + e.message;
+}
+}
