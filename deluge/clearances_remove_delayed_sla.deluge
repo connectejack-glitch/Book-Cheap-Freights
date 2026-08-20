@@ -1,0 +1,70 @@
+void automation.Remove_SLA_Tag_Clearances(String orecid)
+{
+try
+{
+	if(orecid == null || orecid.toString().trim() == "") return;
+	recordId = orecid.toString().trim();
+	rec = zoho.crm.getRecordById("Clearances",recordId.toLong());
+	if(rec == null || rec.isEmpty()) return;
+	existingTags = rec.get("Tag");
+	if(existingTags == null || existingTags.isEmpty())
+	{
+		info "CLEARANCE_REMOVE_SLA SKIPPED | No tags found | ID: " + recordId;
+		return;
+	}
+	delayedExists = false;
+	for each tg in existingTags
+	{
+		if(tg != null)
+		{
+			nameValue = tg.get("name");
+			if(nameValue != null && nameValue.toString().trim().equalsIgnoreCase("Delayed")) delayedExists = true;
+		}
+	}
+	if(!delayedExists)
+	{
+		info "CLEARANCE_REMOVE_SLA SKIPPED | Delayed not present | ID: " + recordId;
+		return;
+	}
+	removeTag = Map();
+	removeTag.put("name","Delayed");
+	removeList = List();
+	removeList.add(removeTag);
+	payload = Map();
+	payload.put("tags",removeList);
+	response = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v8/Clearances/" + recordId + "/actions/remove_tags"
+		type :POST
+		parameters:payload.toString()
+		connection:"zoho_crm"
+	];
+	info "CLEARANCE_REMOVE_SLA API RESPONSE | ID: " + recordId + " | Response: " + response;
+	verify = zoho.crm.getRecordById("Clearances",recordId.toLong());
+	verifyTags = verify.get("Tag");
+	delayedStillExists = false;
+	criticalStillExists = false;
+	if(verifyTags != null)
+	{
+		for each tg in verifyTags
+		{
+			if(tg != null)
+			{
+				nameValue = tg.get("name");
+				if(nameValue != null)
+				{
+					nameText = nameValue.toString().trim();
+					if(nameText.equalsIgnoreCase("Delayed")) delayedStillExists = true;
+					if(nameText.equalsIgnoreCase("Critical")) criticalStillExists = true;
+				}
+			}
+		}
+	}
+	if(!delayedStillExists) info "CLEARANCE_REMOVE_SLA SUCCESS | Delayed removed | Critical preserved: " + criticalStillExists + " | ID: " + recordId;
+	else info "CLEARANCE_REMOVE_SLA WARNING | Delayed still present | ID: " + recordId;
+}
+catch(e)
+{
+	info "CLEARANCE_REMOVE_SLA ERROR | ID: " + orecid + " | Line: " + e.lineNo + " | Message: " + e.message;
+}
+}
