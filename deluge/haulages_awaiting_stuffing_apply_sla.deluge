@@ -1,0 +1,51 @@
+void automation.Awaiting_Stuffing_Apply_SLA_Universal_Tag_Haulage_Critical(String orecid,String otag,String expected_status,String module_name)
+{
+try
+{
+	if(orecid == null || orecid.toString().trim() == "" || otag == null || otag.toString().trim() == "" || expected_status == null || expected_status.toString().trim() == "" || module_name == null || module_name.toString().trim() == "") return;
+	recordId = orecid.toString().trim();
+	requestedTag = otag.toString().trim();
+	expectedStatus = expected_status.toString().trim();
+	moduleName = module_name.toString().trim();
+	if(!requestedTag.equalsIgnoreCase("Delayed") && !requestedTag.equalsIgnoreCase("Critical")) return;
+	if(requestedTag.equalsIgnoreCase("Delayed")) requestedTag = "Delayed";
+	else requestedTag = "Critical";
+	rec = zoho.crm.getRecordById(moduleName,recordId.toLong());
+	if(rec == null || rec.isEmpty()) return;
+	statusValue = rec.get("Status");
+	if(statusValue == null) return;
+	currentStatus = statusValue.toString().trim();
+	if(!currentStatus.equalsIgnoreCase(expectedStatus))
+	{
+		info "AWAITING_STUFFING_SLA SKIPPED | Expected: " + expectedStatus + " | Current: " + currentStatus + " | ID: " + recordId;
+		return;
+	}
+	existingTags = rec.get("Tag");
+	if(existingTags == null) existingTags = List();
+	for each tg in existingTags
+	{
+		if(tg != null)
+		{
+			nameValue = tg.get("name");
+			if(nameValue != null && nameValue.toString().trim().equalsIgnoreCase(requestedTag))
+			{
+				info "AWAITING_STUFFING_SLA SKIPPED | Tag already exists: " + requestedTag;
+				return;
+			}
+		}
+	}
+	finalTags = List();
+	for each existingTag in existingTags finalTags.add(existingTag);
+	newTag = Map();
+	newTag.put("name",requestedTag);
+	finalTags.add(newTag);
+	updateMap = Map();
+	updateMap.put("Tag",finalTags);
+	response = zoho.crm.updateRecord(moduleName,recordId.toLong(),updateMap);
+	info "AWAITING_STUFFING_SLA SUCCESS | ID: " + recordId + " | Status: " + currentStatus + " | Tag: " + requestedTag + " | Response: " + response;
+}
+catch(e)
+{
+	info "AWAITING_STUFFING_SLA ERROR | ID: " + orecid + " | Line: " + e.lineNo + " | Message: " + e.message;
+}
+}
