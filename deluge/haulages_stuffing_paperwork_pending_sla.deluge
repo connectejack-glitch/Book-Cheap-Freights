@@ -1,0 +1,128 @@
+void automation.Stuffing_Paperwork_Pending_SLA_Delayed_Haulages(String haulage_id,String severity)
+{
+try
+{
+	if(haulage_id == null || haulage_id.toString().trim() == "" || severity == null || severity.toString().trim() == "") return;
+	haulageId = haulage_id.toString().trim();
+	requestedSeverity = severity.toString().trim();
+	if(!requestedSeverity.equalsIgnoreCase("Delayed") && !requestedSeverity.equalsIgnoreCase("Critical"))
+	{
+		info "STUFFING_PAPERWORK_PENDING_SLA ABORTED | Invalid Severity: " + requestedSeverity;
+		return;
+	}
+	if(requestedSeverity.equalsIgnoreCase("Delayed")) requestedSeverity = "Delayed";
+	else requestedSeverity = "Critical";
+	haulage = zoho.crm.getRecordById("Haulages",haulageId.toLong());
+	if(haulage == null || haulage.isEmpty()) return;
+	statusValue = haulage.get("Status");
+	if(statusValue == null || !statusValue.toString().trim().equalsIgnoreCase("Awaiting Drop-off"))
+	{
+		info "STUFFING_PAPERWORK_PENDING_SLA SKIPPED | Haulage: " + haulageId + " | Current Status: " + statusValue;
+		return;
+	}
+	bookingLookup = haulage.get("Booking");
+	if(bookingLookup == null) return;
+	bookingIdValue = bookingLookup.get("id");
+	if(bookingIdValue == null) return;
+	bookingId = bookingIdValue.toString().trim();
+	/*
+	 The workflow itself is the authoritative transition trigger:
+	 Haulage Status changed to Awaiting Drop-off.
+	 We deliberately do not call the problematic Haulage_Status_History
+	 related list here. The live-status guardrail prevents stale runs.
+	*/
+	haulageCriteria = "(Booking:equals:" + bookingId + ")";
+	siblings = zoho.crm.searchRecords("Haulages",haulageCriteria);
+	if(siblings == null || siblings.isEmpty()) return;
+	lastHaulage = true;
+	for each siblingSummary in siblings
+	{
+		siblingIdValue = siblingSummary.get("id");
+		if(siblingIdValue == null || siblingIdValue.toString().trim().equalsIgnoreCase(haulageId)) continue;
+		sibling = zoho.crm.getRecordById("Haulages",siblingIdValue.toLong());
+		if(sibling != null && !sibling.isEmpty())
+		{
+			siblingStatusValue = sibling.get("Status");
+			if(siblingStatusValue != null)
+			{
+				siblingStatus = siblingStatusValue.toString().trim();
+				if(siblingStatus.equalsIgnoreCase("Unallocated") || siblingStatus.equalsIgnoreCase("Awaiting Empty Pick-up") || siblingStatus.equalsIgnoreCase("En-route Customer") || siblingStatus.equalsIgnoreCase("Awaiting Stuffing"))
+				{
+					lastHaulage = false;
+					break;
+				}
+			}
+		}
+	}
+	if(!lastHaulage)
+	{
+		info "STUFFING_PAPERWORK_PENDING_SLA SKIPPED | Haulage: " + haulageId + " | Booking: " + bookingId + " | Another active Haulage remains.";
+		return;
+	}
+	clearanceCriteria = "(Booking:equals:" + bookingId + ")";
+	clearances = zoho.crm.searchRecords("Clearances",clearanceCriteria);
+	if(clearances == null || clearances.isEmpty())
+	{
+		info "STUFFING_PAPERWORK_PENDING_SLA SKIPPED | Booking: " + bookingId + " | No linked Clearance.";
+		return;
+	}
+	for each clearanceSummary in clearances
+	{
+		clearanceIdValue = clearanceSummary.get("id");
+		if(clearanceIdValue == null) continue;
+		clearanceId = clearanceIdValue.toLong();
+		clearance = zoho.crm.getRecordById("Clearances",clearanceId);
+		if(clearance == null || clearance.isEmpty()) continue;
+		clearanceStatusValue = clearance.get("Status");
+		if(clearanceStatusValue == null || !clearanceStatusValue.toString().trim().equalsIgnoreCase("Stuffing Paperwork Pending"))
+		{
+			info "STUFFING_PAPERWORK_PENDING_SLA SKIPPED | Clearance: " + clearanceId + " | Status: " + clearanceStatusValue;
+			continue;
+		}
+		existingTags = clearance.get("Tag");
+		if(existingTags == null) existingTags = List();
+		tagPayload = List();
+		delayedExists = false;
+		criticalExists = false;
+		for each existingTag in existingTags
+		{
+			if(existingTag != null)
+			{
+				nameValue = existingTag.get("name");
+				if(nameValue != null)
+				{
+					nameText = nameValue.toString().trim();
+					if(nameText.equalsIgnoreCase("Delayed")) delayedExists = true;
+					if(nameText.equalsIgnoreCase("Critical")) criticalExists = true;
+					if(requestedSeverity.equalsIgnoreCase("Critical") && nameText.equalsIgnoreCase("Delayed")) continue;
+					preserved = Map();
+					preserved.put("name",nameText);
+					tagPayload.add(preserved);
+				}
+			}
+		}
+		if(requestedSeverity.equalsIgnoreCase("Delayed") && !delayedExists)
+		{
+			newDelayed = Map();
+			newDelayed.put("name","Delayed");
+			tagPayload.add(newDelayed);
+		}
+		if(requestedSeverity.equalsIgnoreCase("Critical") && !criticalExists)
+		{
+			newCritical = Map();
+			newCritical.put("name","Critical");
+			tagPayload.add(newCritical);
+		}
+		updatePayload = Map();
+		updatePayload.put("Tag",tagPayload);
+		updateResponse = zoho.crm.updateRecord("Clearances",clearanceId,updatePayload);
+		verify = zoho.crm.getRecordById("Clearances",clearanceId);
+		verifyTags = verify.get("Tag");
+		info "STUFFING_PAPERWORK_PENDING_SLA RESULT | Haulage: " + haulageId + " | Booking: " + bookingId + " | Clearance: " + clearanceId + " | Severity: " + requestedSeverity + " | Update: " + updateResponse + " | Tags After: " + verifyTags;
+	}
+}
+catch(e)
+{
+	info "STUFFING_PAPERWORK_PENDING_SLA ERROR | Haulage: " + haulage_id + " | Severity: " + severity + " | Line: " + e.lineNo + " | Message: " + e.message;
+}
+}
