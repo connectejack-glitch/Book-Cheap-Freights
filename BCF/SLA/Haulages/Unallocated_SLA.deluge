@@ -1,0 +1,116 @@
+void automation.Unallocated_SLA(String haulage_id,String severity)
+{
+	try
+	{
+		requestedSeverity = severity.toString().trim();
+		if(!requestedSeverity.equalsIgnoreCase("Delayed") && !requestedSeverity.equalsIgnoreCase("Critical"))
+		{
+			return;
+		}
+		haulage = zoho.crm.getRecordById("Haulages",haulage_id.toLong());
+		if(haulage == null || haulage.isEmpty())
+		{
+			return;
+		}
+		currentStatus = haulage.get("Status");
+		if(currentStatus == null || !currentStatus.toString().trim().equalsIgnoreCase("Unallocated"))
+		{
+			return;
+		}
+		existingTags = haulage.get("Tag");
+		tagPayload = List();
+		delayedExists = false;
+		criticalExists = false;
+		if(existingTags != null && !existingTags.isEmpty())
+		{
+			for each existingTag in existingTags
+			{
+				if(existingTag != null)
+				{
+					tagName = existingTag.get("name");
+					if(tagName != null)
+					{
+						tagNameText = tagName.toString().trim();
+						if(requestedSeverity.equalsIgnoreCase("Critical") && tagNameText.equalsIgnoreCase("Delayed"))
+						{
+							continue;
+						}
+						if(tagNameText.equalsIgnoreCase("Delayed"))
+						{
+							delayedExists = true;
+						}
+						if(tagNameText.equalsIgnoreCase("Critical"))
+						{
+							criticalExists = true;
+						}
+						preservedTag = Map();
+						preservedTag.put("name",tagNameText);
+						tagPayload.add(preservedTag);
+					}
+				}
+			}
+		}
+		if(requestedSeverity.equalsIgnoreCase("Delayed") && !delayedExists)
+		{
+			delayedTag = Map();
+			delayedTag.put("name","Delayed");
+			tagPayload.add(delayedTag);
+		}
+		else if(requestedSeverity.equalsIgnoreCase("Critical") && !criticalExists)
+		{
+			criticalTag = Map();
+			criticalTag.put("name","Critical");
+			tagPayload.add(criticalTag);
+		}
+		updatePayload = Map();
+		updatePayload.put("Tag",tagPayload);
+		zoho.crm.updateRecord("Haulages",haulage_id.toLong(),updatePayload);
+		verifyHaulage = zoho.crm.getRecordById("Haulages",haulage_id.toLong());
+		if(verifyHaulage == null || verifyHaulage.isEmpty())
+		{
+			return;
+		}
+		verifiedStatus = verifyHaulage.get("Status");
+		if(verifiedStatus == null || !verifiedStatus.toString().trim().equalsIgnoreCase("Unallocated"))
+		{
+			return;
+		}
+		verifiedTags = verifyHaulage.get("Tag");
+		verifiedDelayed = false;
+		verifiedCritical = false;
+		if(verifiedTags != null && !verifiedTags.isEmpty())
+		{
+			for each verifiedTag in verifiedTags
+			{
+				if(verifiedTag != null)
+				{
+					verifiedTagName = verifiedTag.get("name");
+					if(verifiedTagName != null)
+					{
+						verifiedTagNameText = verifiedTagName.toString().trim();
+						if(verifiedTagNameText.equalsIgnoreCase("Delayed"))
+						{
+							verifiedDelayed = true;
+						}
+						if(verifiedTagNameText.equalsIgnoreCase("Critical"))
+						{
+							verifiedCritical = true;
+						}
+					}
+				}
+			}
+		}
+		if(requestedSeverity.equalsIgnoreCase("Delayed") && !verifiedDelayed)
+		{
+			info "UNALLOCATED_SLA FAILED | Haulage: " + haulage_id + " | Delayed tag was not verified.";
+		}
+		else if(requestedSeverity.equalsIgnoreCase("Critical") && (!verifiedCritical || verifiedDelayed))
+		{
+			info "UNALLOCATED_SLA FAILED | Haulage: " + haulage_id + " | Critical tag verification failed.";
+		}
+	}
+	catch (e)
+	{
+		info "UNALLOCATED_SLA ERROR | Haulage: " + haulage_id + " | Severity: " + severity + " | Error: " + e;
+	}
+}
