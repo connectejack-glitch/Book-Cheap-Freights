@@ -1,0 +1,53 @@
+void automation.BOOKING_Remove_Check_Arrival_Date(String booking_id)
+{
+try
+{
+	bookingId = booking_id.toString();
+
+	booking = zoho.crm.getRecordById("Deals",bookingId.toLong());
+	currentStage = booking.get("Stage");
+
+	isPostShipped = false;
+
+	if(currentStage != null)
+	{
+		stage = currentStage.toString();
+
+		if(stage.equalsIgnoreCase("Shipped") ||
+		   stage.equalsIgnoreCase("Paid") ||
+		   stage.equalsIgnoreCase("Verified Copy Approved") ||
+		   stage.equalsIgnoreCase("OBL Collected") ||
+		   stage.equalsIgnoreCase("OBL Issued to Client") ||
+		   stage.equalsIgnoreCase("File Closed"))
+		{
+			isPostShipped = true;
+		}
+	}
+
+	if(isPostShipped)
+	{
+		return;
+	}
+
+	removePayload = Map();
+	removeTagList = List();
+	tagMap = Map();
+	tagMap.put("name","Check Arrival Date");
+	removeTagList.add(tagMap);
+	removePayload.put("tags",removeTagList);
+
+	apiUrl = "https://www.zohoapis.com/crm/v8/Deals/" + bookingId + "/actions/remove_tags";
+
+	invokeurl
+	[
+		url :apiUrl
+		type :POST
+		parameters:removePayload.toString()
+		connection:"zoho_crm"
+	];
+}
+catch(e)
+{
+	info "BOOKING_REMOVE_CHECK_ARRIVAL_DATE ERROR | Booking: " + booking_id + " | Error: " + e;
+}
+}
