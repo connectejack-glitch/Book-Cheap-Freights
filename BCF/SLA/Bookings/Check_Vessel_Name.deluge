@@ -1,0 +1,60 @@
+void automation.BOOKING_Check_Vessel_Name(String booking_id,String severity)
+{
+try
+{
+	bookingId = booking_id.toString();
+	requestedTag = severity.toString();
+
+	booking = zoho.crm.getRecordById("Deals",bookingId.toLong());
+	currentStage = booking.get("Stage");
+
+	if(currentStage == null)
+	{
+		return;
+	}
+
+	currentStage = currentStage.toString();
+
+	if(!currentStage.equalsIgnoreCase("Open") && !currentStage.equalsIgnoreCase("Pending Shipment"))
+	{
+		return;
+	}
+
+	existingTags = booking.get("Tag");
+	finalTags = List();
+	tagExists = false;
+
+	if(existingTags != null && !existingTags.isEmpty())
+	{
+		for each existingTag in existingTags
+		{
+			finalTags.add(existingTag);
+			existingTagName = existingTag.get("name");
+
+			if(existingTagName != null && existingTagName.toString().equalsIgnoreCase(requestedTag))
+			{
+				tagExists = true;
+			}
+		}
+	}
+
+	if(tagExists)
+	{
+		return;
+	}
+
+	newTag = Map();
+	newTag.put("name",requestedTag);
+	finalTags.add(newTag);
+
+	updateMap = Map();
+	updateMap.put("Tag",finalTags);
+	updateResponse = zoho.crm.updateRecord("Deals",bookingId.toLong(),updateMap);
+
+	info "BOOKING_CHECK_VESSEL_NAME | Booking: " + bookingId + " | Stage: " + currentStage + " | Tag Added: " + requestedTag;
+}
+catch(e)
+{
+	info "BOOKING_CHECK_VESSEL_NAME ERROR | Booking: " + booking_id + " | Error: " + e;
+}
+}
