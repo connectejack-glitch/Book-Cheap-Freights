@@ -1,39 +1,69 @@
-# BCF Booking / Deals — SLA & Tagging Work Completed
+# BCF Booking / Deals — SLA & Tagging
 
 ## Module
 
 - Zoho CRM module: **Deals**
 - Business meaning: **Bookings**
+- Stage field: `Stage`
 
-This document records the Booking / Deals work completed during the current implementation session.
+## Booking Stage & Automation Status
 
-## Completed Booking SLAs
+| Stage | Trigger / Anchor | SLA / Tag | Status |
+|---|---|---|---|
+| Open | Booking enters `Open` | 7 days → Delayed; 14 days → Critical | Completed |
+| Pending Shipment | Booking enters `Pending Shipment` | Pending Shipment SLA under investigation; Gate-In is the relevant business milestone | In Progress |
+| Shipped | Booking enters `Shipped` | 9 days → Delayed; 15 days → Critical | Completed |
+| Paid | Booking enters `Paid` | 3 days → Delayed; 7 days → Critical | Completed |
+| Verified Copy Approved | Stage reached after Shipped | `Check Arrival Date` remains relevant | Tag logic covered by post-Shipped Arrival Date rule |
+| OBL Collected | Booking enters `OBL Collected` | TPD Pending starts from this Booking milestone for linked Clearance | Completed for TPD Pending trigger |
+| OBL Issued to Client | Stage reached after OBL Collected | `Check Arrival Date` remains relevant | Covered by post-Shipped Arrival Date rule |
+| File Closed | Final Booking stage | `Check Arrival Date` remains relevant | Covered by post-Shipped Arrival Date rule |
+| Cancelled | Booking enters `Cancelled` | Remove `Check Arrival Date`, `Check Departure Date`, `Check Vessel Name` | Requirement defined |
 
-| Stage | Trigger / Anchor | Delayed | Critical | Status |
-|---|---|---:|---:|---|
-| Unallocated | Booking enters Unallocated / SLA clock from creation | 4 days | 8 days | Completed |
-| Open | Status Entry into Open | 7 days | 14 days | Completed |
-| Shipped | Booking enters Shipped | 9 days | 15 days | Completed |
+> The Booking stages above are the stages confirmed in the current BCF project context and CRM screenshots/logs. Zoho CRM allows Deal stages to be customized, so this list should be updated if the live pipeline is changed. citeturn0search0turn0search2
 
-### Standard SLA behaviour
+## Completed Booking SLA Work
 
-The Workflow Rule controls **when** the scheduled action runs.
+### Open
 
-The Deluge function controls **whether the SLA is still applicable** when the scheduled action runs.
+- Trigger: Booking Stage changes to `Open`.
+- 7 days → `Delayed`.
+- 14 days → `Critical`.
+- The function validates the live Booking Stage before tagging.
 
-The function retrieves the live Booking and checks the current Stage before applying the requested severity.
+### Paid
 
-## Arrival Date Tag
+- Trigger: Booking Stage changes to `Paid`.
+- 3 days → `Delayed`.
+- 7 days → `Critical`.
+- The function validates the live Booking Stage before tagging.
 
-### Requirement
+### Shipped
 
-Arrival Date becomes relevant once the Booking has shipped and remains relevant through the post-shipped stages.
+- Trigger: Booking Stage changes to `Shipped`.
+- 9 days → `Delayed`.
+- 15 days → `Critical`.
+- The function validates the live Booking Stage before tagging.
 
-When **Arrival Date is modified**, the workflow calls the function.
+## Booking Date / Vessel Tags
 
-The function retrieves the live Booking, checks the current Stage, and adds `Check Arrival Date` only when the Booking is Shipped or later.
+### Managed tags
 
-### Post-Shipped stages
+- `Check Arrival Date`
+- `Check Departure Date`
+- `Check Vessel Name`
+
+Before implementing the new Arrival Date workflow, the CRM was cleared of all three managed tags so the new logic could start from a clean state.
+
+### Arrival Date
+
+**Trigger:** Arrival Date is modified.
+
+The workflow calls `BOOKING_Check_Arrival_Date`.
+
+The function retrieves the LIVE Booking and checks the current Stage.
+
+`Check Arrival Date` is added when the Booking is:
 
 - Shipped
 - Paid
@@ -42,80 +72,74 @@ The function retrieves the live Booking, checks the current Stage, and adds `Che
 - OBL Issued to Client
 - File Closed
 
-Cancelled is excluded.
+It does nothing before Shipped and does not add the tag to Cancelled records.
 
-### Workflow arguments
+### Departure Date
 
-- `booking_id` → Booking / Deals record ID
-- `severity` → `Check Arrival Date`
+`Check Departure Date` is relevant while the Booking is in Pending Shipment.
 
-## Booking Tag Cleanup
+After the Booking has shipped, the Departure Date tag should no longer remain.
 
-Before implementing the new Arrival Date workflow, the existing CRM records were cleared of:
+**Status: In Progress.**
 
-- `Check Arrival Date`
-- `Check Departure Date`
-- `Check Vessel Name`
+### Vessel Name
 
-This provided a clean starting point for the new tagging logic.
+`Check Vessel Name` is relevant while the Booking is in Pending Shipment.
 
-## Tag Rules
+After the Booking has shipped, the Vessel Name tag should no longer remain.
 
-### Before Shipped
-
-Arrival Date is not relevant.
-
-Pending Shipment is expected to use `Check Departure Date` and `Check Vessel Name`.
-
-### Shipped and later
-
-Arrival Date is relevant and `Check Arrival Date` should apply.
-
-Departure Date and Vessel Name tags should no longer remain after shipment.
+**Status: In Progress.**
 
 ### Cancelled
 
-All three managed tags should be removed:
+When Stage is `Cancelled`, all three managed tags should be removed:
 
 - `Check Arrival Date`
 - `Check Departure Date`
 - `Check Vessel Name`
 
-Unrelated tags must be preserved.
+Unrelated CRM tags must be preserved.
+
+## TPD Pending — Booking Trigger
+
+TPD Pending is a **Clearance SLA**, but the process starts from the Booking.
+
+**Trigger:** Booking enters `OBL Collected`.
+
+The workflow/function then finds the Clearance linked to that Booking and validates the Clearance status before applying the SLA tag.
+
+- 4 days → `Delayed`
+- 7 days → `Critical`
+
+If the linked Clearance is already `Pending Documents Delivery` or `Cleared`, no TPD SLA action is taken.
 
 ## In Progress
 
 ### Pending Shipment
 
-- 9 days → Delayed
-- 18 days → Critical
-- Clock: last container Gate-In / Gate-In completion date
-- Booking `Gate_In` was confirmed as a number field.
-- Exact source for the last container Gate-In milestone was still being investigated.
+- The SLA timing currently being worked on is **9 days / 15 days** where applicable to the Booking workflow.
+- The relevant business milestone being investigated is Gate-In / completion of the Booking containers.
+- `Gate_In` on the Booking was confirmed as a number field.
 
 ### Departure Date
 
-- Managed tag: `Check Departure Date`
-- Relevant during Pending Shipment and should not remain after Shipped.
-- Status: In Progress
+- Managed tag: `Check Departure Date`.
+- Relevant for Pending Shipment.
+- Should not remain after Shipped.
 
 ### Vessel Name
 
-- Managed tag: `Check Vessel Name`
-- Relevant during Pending Shipment and should not remain after Shipped.
-- Status: In Progress
+- Managed tag: `Check Vessel Name`.
+- Relevant for Pending Shipment.
+- Should not remain after Shipped.
 
-## Important Implementation Rules
+## Implementation Rules
 
-- Booking = Deals module.
-- Always retrieve the **live Booking** before acting.
-- Do not rely only on the state that existed when the workflow was originally triggered.
-- Do not use `input.id` for BCF functions.
-- Record IDs are supplied explicitly through workflow arguments.
-- Use the established CRM tag update pattern with `updateMap.put("Tag",finalTags)` and `zoho.crm.updateRecord(...)`.
+- Booking = `Deals`.
+- Workflow controls timing/trigger execution.
+- Deluge validates the live Booking before acting.
+- Booking IDs are supplied explicitly through workflow arguments.
+- Do not use `input.id` in these BCF functions.
+- Preserve unrelated existing tags.
+- Use the established `updateMap.put("Tag",finalTags)` and `zoho.crm.updateRecord(...)` pattern.
 - Do not use a separate tag API for this implementation.
-- Existing non-managed tags must be preserved.
-
-## Working Arrival Date Deluge
-
-The exact working function is stored separately in `Check_Arrival_Date.deluge` in this folder.
