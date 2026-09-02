@@ -1,0 +1,89 @@
+void automation.TPD_Pending_SLA_Critical(String booking_id,String severity)
+{
+try 
+{
+	bookingId = booking_id.toString().trim();
+	requestedSeverity = severity.toString().trim();
+
+	if(!requestedSeverity.equalsIgnoreCase("Delayed") && !requestedSeverity.equalsIgnoreCase("Critical"))
+	{
+		return;
+	}
+
+	clearanceCriteria = "(Booking:equals:" + bookingId + ")";
+	clearances = zoho.crm.searchRecords("Clearances",clearanceCriteria);
+
+	if(clearances == null || clearances.isEmpty())
+	{
+		return;
+	}
+
+	for each clearanceSummary in clearances
+	{
+		clearanceId = clearanceSummary.get("id");
+
+		if(clearanceId == null)
+		{
+			continue;
+		}
+
+		clearanceIdText = clearanceId.toString().trim();
+		clearance = zoho.crm.getRecordById("Clearances",clearanceIdText.toLong());
+
+		if(clearance == null)
+		{
+			continue;
+		}
+
+		clearanceStatus = clearance.get("Status");
+
+		if(clearanceStatus == null)
+		{
+			continue;
+		}
+
+		clearanceStatusText = clearanceStatus.toString().trim();
+
+		if(!clearanceStatusText.equalsIgnoreCase("TPD Pending"))
+		{
+			continue;
+		}
+
+		existingTags = clearance.get("Tag");
+		tagAlreadyExists = false;
+
+		if(existingTags != null && !existingTags.isEmpty())
+		{
+			for each existingTag in existingTags
+			{
+				existingTagName = existingTag.get("name");
+
+				if(existingTagName != null && existingTagName.toString().trim().equalsIgnoreCase(requestedSeverity))
+				{
+					tagAlreadyExists = true;
+					break;
+				}
+			}
+		}
+
+		if(tagAlreadyExists)
+		{
+			continue;
+		}
+
+		tagPayload = List();
+		tagObject = Map();
+		tagObject.put("name",requestedSeverity);
+		tagPayload.add(tagObject);
+
+		updatePayload = Map();
+		updatePayload.put("Tag",tagPayload);
+
+		updateResponse = zoho.crm.updateRecord("Clearances",clearanceIdText.toLong(),updatePayload);
+	}
+}
+catch (e)
+{
+	info e.message;
+}
+}
