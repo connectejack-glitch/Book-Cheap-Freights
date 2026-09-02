@@ -1,0 +1,112 @@
+void automation.CCI_Pending_Apply_SLA_Universal_Tag_Clearance_Critical(String orecid,String otag,String expected_status,String module_name)
+{
+try 
+{
+	if(orecid == null || orecid.toString().trim() == "")
+	{
+		return;
+	}
+	if(otag == null || otag.toString().trim() == "")
+	{
+		return;
+	}
+	if(expected_status == null || expected_status.toString().trim() == "")
+	{
+		return;
+	}
+	if(module_name == null || module_name.toString().trim() == "")
+	{
+		return;
+	}
+
+	recordId = orecid.toString().trim();
+	requestedTag = otag.toString().trim();
+	expectedStatus = expected_status.toString().trim();
+	moduleName = module_name.toString().trim();
+
+	if(!requestedTag.equalsIgnoreCase("Delayed") && !requestedTag.equalsIgnoreCase("Critical"))
+	{
+		return;
+	}
+
+	if(requestedTag.equalsIgnoreCase("Delayed"))
+	{
+		requestedTag = "Delayed";
+	}
+	else
+	{
+		requestedTag = "Critical";
+	}
+
+	rec = zoho.crm.getRecordById(moduleName,recordId.toLong());
+
+	if(rec == null)
+	{
+		return;
+	}
+
+	currentStatusValue = rec.get("Status");
+
+	if(currentStatusValue == null)
+	{
+		return;
+	}
+
+	currentStatus = currentStatusValue.toString().trim();
+
+	if(!currentStatus.equalsIgnoreCase(expectedStatus))
+	{
+		return;
+	}
+
+	existingTags = rec.get("Tag");
+
+	if(existingTags == null)
+	{
+		existingTags = List();
+	}
+
+	tagAlreadyExists = false;
+
+	for each tg in existingTags
+	{
+		tgNameValue = tg.get("name");
+
+		if(tgNameValue != null)
+		{
+			tgName = tgNameValue.toString().trim();
+
+			if(tgName.equalsIgnoreCase(requestedTag))
+			{
+				tagAlreadyExists = true;
+				break;
+			}
+		}
+	}
+
+	if(tagAlreadyExists)
+	{
+		return;
+	}
+
+	finalTags = List();
+
+	for each existingTag in existingTags
+	{
+		finalTags.add(existingTag);
+	}
+
+	newSlaTag = Map();
+	newSlaTag.put("name",requestedTag);
+	finalTags.add(newSlaTag);
+
+	updateMap = Map();
+	updateMap.put("Tag",finalTags);
+
+	updateResponse = zoho.crm.updateRecord(moduleName,recordId.toLong(),updateMap);
+}
+catch (e)
+{
+	info e.message;
+}
+}
