@@ -44,9 +44,11 @@ Booking enters `OBL Collected`
 
 → TPD Pending clock starts
 
+→ Workflow schedules the SLA checks
+
 → Find the Clearance linked to that Booking
 
-→ At the scheduled SLA check, retrieve the LIVE Clearance
+→ Retrieve the LIVE Clearance
 
 → Check the current Clearance Status
 
@@ -76,8 +78,6 @@ This means:
 
 > **Booking movement does NOT stop the SLA. Clearance movement DOES stop the SLA.**
 
-The function always retrieves the LIVE Clearance before applying the tag.
-
 ### Relationship
 
 The Clearance is found using the **Booking lookup**.
@@ -89,6 +89,21 @@ Do not use Job as the relationship anchor because one Job can contain multiple B
 The SLA severity is applied to the **Clearance record**, not the Booking.
 
 Only the requested severity is added. Existing tags are preserved.
+
+### Deluge Function
+
+`TPD_Pending_SLA_Critical`
+
+File:
+
+`TPD_Pending_SLA_Critical.deluge`
+
+Arguments:
+
+- `booking_id`
+- `severity`
+
+The function accepts only `Delayed` or `Critical` as the requested severity.
 
 ## Pending Documents Delivery
 
