@@ -11,16 +11,16 @@
 | Stage | Trigger / Anchor | SLA / Tag | Status |
 |---|---|---|---|
 | Open | Booking enters `Open` | 7 days → Delayed; 14 days → Critical | Completed |
-| Pending Shipment | Booking enters `Pending Shipment` | Pending Shipment SLA under investigation; Gate-In is the relevant business milestone | In Progress |
+| Pending Shipment | Booking enters `Pending Shipment` | 9 days → Delayed; 15 days → Critical; timing based on last Container Gate-In / Gate-In completion date | In Progress |
 | Shipped | Booking enters `Shipped` | 9 days → Delayed; 15 days → Critical | Completed |
 | Paid | Booking enters `Paid` | 3 days → Delayed; 7 days → Critical | Completed |
-| Verified Copy Approved | Stage reached after Shipped | `Check Arrival Date` remains relevant | Tag logic covered by post-Shipped Arrival Date rule |
+| Verified Copy Approved | Stage reached after Shipped | `Check Arrival Date` remains relevant | Covered by post-Shipped Arrival Date rule |
 | OBL Collected | Booking enters `OBL Collected` | TPD Pending starts from this Booking milestone for linked Clearance | Completed for TPD Pending trigger |
 | OBL Issued to Client | Stage reached after OBL Collected | `Check Arrival Date` remains relevant | Covered by post-Shipped Arrival Date rule |
 | File Closed | Final Booking stage | `Check Arrival Date` remains relevant | Covered by post-Shipped Arrival Date rule |
 | Cancelled | Booking enters `Cancelled` | Remove `Check Arrival Date`, `Check Departure Date`, `Check Vessel Name` | Requirement defined |
 
-> The Booking stages above are the stages confirmed in the current BCF project context and CRM screenshots/logs. Zoho CRM allows Deal stages to be customized, so this list should be updated if the live pipeline is changed. citeturn0search0turn0search2
+> The Booking stages above are the stages confirmed in the current BCF project context and CRM screenshots/logs. Zoho CRM allows Deal stages to be customized, so this list should be updated if the live pipeline is changed.
 
 ## Completed Booking SLA Work
 
@@ -90,6 +90,19 @@ After the Booking has shipped, the Vessel Name tag should no longer remain.
 
 **Status: In Progress.**
 
+### Delayed Tag Removal
+
+**Trigger:** Booking Stage is modified.
+
+The workflow calls `Remove_SLA_Tag_Bookings`.
+
+The function retrieves the LIVE Booking and removes only the `Delayed` tag.
+
+- `Critical` is preserved.
+- All other existing tags are preserved.
+- The Booking Stage is not changed.
+- The function receives the Booking ID through the workflow argument `orecid`.
+
 ### Cancelled
 
 When Stage is `Cancelled`, all three managed tags should be removed:
@@ -117,9 +130,10 @@ If the linked Clearance is already `Pending Documents Delivery` or `Cleared`, no
 
 ### Pending Shipment
 
-- The SLA timing currently being worked on is **9 days / 15 days** where applicable to the Booking workflow.
-- The relevant business milestone being investigated is Gate-In / completion of the Booking containers.
+- SLA: **9 days → Delayed / 15 days → Critical**.
+- Anchor: **last Container Gate-In / Gate-In completion date**.
 - `Gate_In` on the Booking was confirmed as a number field.
+- The Booking Stage must still be `Pending Shipment` when the SLA function runs.
 
 ### Departure Date
 
@@ -141,5 +155,5 @@ If the linked Clearance is already `Pending Documents Delivery` or `Cleared`, no
 - Booking IDs are supplied explicitly through workflow arguments.
 - Do not use `input.id` in these BCF functions.
 - Preserve unrelated existing tags.
-- Use the established `updateMap.put("Tag",finalTags)` and `zoho.crm.updateRecord(...)` pattern.
-- Do not use a separate tag API for this implementation.
+- Booking SLA tag removal uses the established CRM `remove_tags` action with the `zoho_crm` connection.
+- Do not change the Booking Stage through SLA functions.
