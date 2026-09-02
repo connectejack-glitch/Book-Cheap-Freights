@@ -30,30 +30,65 @@
 
 ## TPD Pending
 
-TPD Pending starts from the Booking rather than from the Clearance status-change time.
+TPD Pending is a **Clearance SLA**, but its business anchor is the Booking.
+
+### Anchor
+
+The SLA clock starts **when the Booking enters `OBL Collected`**.
+
+It does **not** start when the Booking leaves `OBL Collected`, and it does not use the Clearance's own status-change time as the SLA anchor.
 
 ### Flow
 
 Booking enters `OBL Collected`
 
+→ TPD Pending clock starts
+
 → Find the Clearance linked to that Booking
 
-→ Check the live Clearance status
+→ At the scheduled SLA check, retrieve the LIVE Clearance
 
-→ Apply the requested SLA severity
+→ Check the current Clearance Status
+
+→ If Clearance is still `TPD Pending`, apply the requested severity
 
 ### Timing
 
 - 4 days → `Delayed`.
 - 7 days → `Critical`.
 
-### Stop conditions
+### Booking movement
 
-- Clearance = `Pending Documents Delivery` → stop.
-- Clearance = `Cleared` → stop.
-- Booking leaves `OBL Collected` before the scheduled action → stop.
+**Once the SLA has been triggered, subsequent Booking Stage changes do NOT stop the TPD Pending SLA.**
 
-The Booking-to-Clearance relationship uses the Booking lookup, not Job, because one Job can contain multiple Bookings. citeturn38file7turn38file10
+The Booking may leave `OBL Collected` and continue through later stages.
+
+The Booking's later Stage is therefore **not** the stop condition for TPD Pending.
+
+### Clearance status guardrail
+
+The **Clearance status** determines whether the SLA is still applicable when the scheduled action runs.
+
+- Clearance = `TPD Pending` → continue and apply the requested severity.
+- Clearance has moved to **any other status** → stop.
+
+This means:
+
+> **Booking movement does NOT stop the SLA. Clearance movement DOES stop the SLA.**
+
+The function always retrieves the LIVE Clearance before applying the tag.
+
+### Relationship
+
+The Clearance is found using the **Booking lookup**.
+
+Do not use Job as the relationship anchor because one Job can contain multiple Bookings.
+
+### Tagging
+
+The SLA severity is applied to the **Clearance record**, not the Booking.
+
+Only the requested severity is added. Existing tags are preserved.
 
 ## Pending Documents Delivery
 
@@ -80,7 +115,7 @@ If no Haulage remains in `Awaiting Stuffing`:
 
 ### Anchor
 
-The SLA clock starts from the **last Haulage exiting Awaiting Stuffing**. citeturn38file6
+The SLA clock starts from the **last Haulage exiting Awaiting Stuffing**.
 
 ## Architecture
 
@@ -97,3 +132,5 @@ The function retrieves the live record, validates the current state, evaluates t
 - Preserve unrelated CRM tags.
 - Do not invent or hardcode SLA timing inside Deluge when the Workflow controls the schedule.
 - TPD Pending uses the Booking milestone `OBL Collected` as its business anchor.
+- **Leaving `OBL Collected` does not stop TPD Pending.**
+- **Only the linked Clearance moving out of `TPD Pending` stops the SLA from being applied at the scheduled check.**
