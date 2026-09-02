@@ -20,7 +20,26 @@
 
 - 3 days → `Delayed`.
 - 5 days → `Critical`.
-- Validate the live Clearance status before applying the requested severity.
+- The workflow controls when the function runs.
+- The function checks the LIVE Clearance status before applying the requested tag.
+- The requested SLA tag is not added if it already exists.
+- Existing SLA and non-SLA tags are preserved.
+- `Delayed` and `Critical` are independent and may coexist.
+
+### Final Deluge Function
+
+**Function:** `Unallocated_Apply_SLA_Universal_Tag_Clearance_Critical`
+
+**Arguments:**
+
+- `orecid`
+- `otag`
+- `expected_status`
+- `module_name`
+
+**File:** `Unallocated_Apply_SLA_Universal_Tag_Clearance_Critical.deluge`
+
+The function does not calculate SLA days. The Workflow owns the timer.
 
 ## CCI Pending
 
@@ -65,16 +84,10 @@ Booking enters `OBL Collected`
 
 The Booking may leave `OBL Collected` and continue through later stages.
 
-The Booking's later Stage is therefore **not** the stop condition for TPD Pending.
-
 ### Clearance status guardrail
-
-The **Clearance status** determines whether the SLA is still applicable when the scheduled action runs.
 
 - Clearance = `TPD Pending` → continue and apply the requested severity.
 - Clearance has moved to **any other status** → stop.
-
-This means:
 
 > **Booking movement does NOT stop the SLA. Clearance movement DOES stop the SLA.**
 
@@ -90,20 +103,18 @@ The SLA severity is applied to the **Clearance record**, not the Booking.
 
 Only the requested severity is added. Existing tags are preserved.
 
-### Deluge Function
+### Final Deluge Function
 
-`TPD_Pending_SLA_Critical`
+**Function:** `TPD_Pending_SLA_Critical`
 
-File:
+**File:** `TPD_Pending_SLA_Critical.deluge`
 
-`TPD_Pending_SLA_Critical.deluge`
-
-Arguments:
+**Arguments:**
 
 - `booking_id`
 - `severity`
 
-The function accepts only `Delayed` or `Critical` as the requested severity.
+The function accepts only `Delayed` or `Critical`.
 
 ## Pending Documents Delivery
 
@@ -145,7 +156,8 @@ The function retrieves the live record, validates the current state, evaluates t
 - Clearances = `Clearances` module.
 - Do not confuse Clearance `Status` with Booking `Stage` or Haulage `Status`.
 - Preserve unrelated CRM tags.
-- Do not invent or hardcode SLA timing inside Deluge when the Workflow controls the schedule.
+- Do not hardcode SLA timing inside Deluge when the Workflow controls the schedule.
 - TPD Pending uses the Booking milestone `OBL Collected` as its business anchor.
 - **Leaving `OBL Collected` does not stop TPD Pending.**
 - **Only the linked Clearance moving out of `TPD Pending` stops the SLA from being applied at the scheduled check.**
+- Booking IDs are passed explicitly through workflow arguments; these functions do not use `input.id`.
