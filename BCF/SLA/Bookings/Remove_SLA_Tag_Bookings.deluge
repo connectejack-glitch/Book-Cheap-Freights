@@ -1,0 +1,71 @@
+void automation.Remove_SLA_Tag_Bookings(String orecid)
+{
+try 
+{
+	if(orecid == null || orecid.toString().trim() == "")
+	{
+		return;
+	}
+
+	recordId = orecid.toString().trim();
+
+	rec = zoho.crm.getRecordById("Deals",recordId.toLong());
+
+	if(rec == null)
+	{
+		return;
+	}
+
+	existingTags = rec.get("Tag");
+
+	if(existingTags == null || existingTags.isEmpty())
+	{
+		return;
+	}
+
+	delayedExists = false;
+
+	for each tg in existingTags
+	{
+		tgNameValue = tg.get("name");
+
+		if(tgNameValue != null)
+		{
+			tgName = tgNameValue.toString().trim();
+
+			if(tgName.equalsIgnoreCase("Delayed"))
+			{
+				delayedExists = true;
+				break;
+			}
+		}
+	}
+
+	if(!delayedExists)
+	{
+		return;
+	}
+
+	removePayload = Map();
+	removeTagList = List();
+	delayedTagMap = Map();
+
+	delayedTagMap.put("name","Delayed");
+	removeTagList.add(delayedTagMap);
+	removePayload.put("tags",removeTagList);
+
+	apiUrl = "https://www.zohoapis.com/crm/v8/Deals/" + recordId + "/actions/remove_tags";
+
+	removeResponse = invokeurl
+	[
+		url :apiUrl
+		type :POST
+		parameters:removePayload.toString()
+		connection:"zoho_crm"
+	];
+}
+catch (e)
+{
+	info e.message;
+}
+}
