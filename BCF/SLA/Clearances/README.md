@@ -30,22 +30,50 @@
 
 **Function:** `Unallocated_Apply_SLA_Universal_Tag_Clearance_Critical`
 
-**Arguments:**
-
-- `orecid`
-- `otag`
-- `expected_status`
-- `module_name`
+**Arguments:** `orecid`, `otag`, `expected_status`, `module_name`
 
 **File:** `Unallocated_Apply_SLA_Universal_Tag_Clearance_Critical.deluge`
 
-The function does not calculate SLA days. The Workflow owns the timer.
-
 ## CCI Pending
+
+### Anchor
+
+The SLA is calculated from **NESS Payment Date**.
+
+The Workflow owns the timer. The Deluge function does not calculate the number of days.
+
+### Timing
 
 - 4 days → `Delayed`.
 - 8 days → `Critical`.
-- The SLA clock is anchored to **NESS Payment Date**, not simply the status-change time.
+
+### Guardrail
+
+When the workflow calls the function:
+
+1. Get the LIVE Clearance.
+2. Check its current `Status`.
+3. Compare it with the expected status.
+4. If it has moved to another status, stop.
+5. Otherwise apply the requested SLA tag.
+
+### Tagging
+
+- `Delayed` and `Critical` are independent and may coexist.
+- Critical does not remove Delayed.
+- Delayed does not remove Critical.
+- Existing SLA and non-SLA tags are preserved.
+- Duplicate requested tags are prevented.
+- Critical is not automatically removed.
+- Tag removal is handled separately.
+
+### Final Deluge Function
+
+**Function:** `CCI_Pending_Apply_SLA_Universal_Tag_Clearance_Critical`
+
+**Arguments:** `orecid`, `otag`, `expected_status`, `module_name`
+
+**File:** `CCI_Pending_Apply_SLA_Universal_Tag_Clearance_Critical.deluge`
 
 ## TPD Pending
 
@@ -109,10 +137,7 @@ Only the requested severity is added. Existing tags are preserved.
 
 **File:** `TPD_Pending_SLA_Critical.deluge`
 
-**Arguments:**
-
-- `booking_id`
-- `severity`
+**Arguments:** `booking_id`, `severity`
 
 The function accepts only `Delayed` or `Critical`.
 
