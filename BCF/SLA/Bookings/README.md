@@ -63,9 +63,9 @@
 - `Check Departure Date`
 - `Check Vessel Name`
 
-Before implementing the new Arrival Date workflow, the CRM was cleared of all three managed tags so the new logic could start from a clean state.
+Before implementing the new Booking field-check workflows, the CRM was cleared of all three managed tags so the new logic could start from a clean state.
 
-### Arrival Date
+### Check Arrival Date
 
 **Trigger:** Arrival Date is modified.
 
@@ -73,44 +73,51 @@ The workflow calls `BOOKING_Check_Arrival_Date`.
 
 The function retrieves the LIVE Booking and checks the current Stage.
 
-`Check Arrival Date` is relevant from **Shipped onward** and remains relevant through the later Booking stages, including:
+`Check Arrival Date` is relevant from **Shipped onward**, including the later Booking stages.
 
-- Shipped
-- Verified Copy Approved
-- OBL Collected
-- OBL Issued to Client
-- Paid
-- File Closed
+When the Booking moves out of the applicable stages, `Check Arrival Date` is removed.
 
-It should not be present before Shipped and should not be added to Cancelled records.
+### Check Departure Date
 
-### Departure Date
+**Trigger:** Departure Date is modified.
 
-`Check Departure Date` is relevant for **Pending Shipment**.
+The workflow calls `BOOKING_Check_Departure_Date`.
 
-It should not remain after the Booking has shipped.
+The function retrieves the LIVE Booking and checks the current Stage.
 
-**Status: In Progress.**
+`Check Departure Date` is relevant only when the Booking is in **Pending Shipment**.
 
-### Vessel Name
+When the Booking moves out of **Pending Shipment**, `Check Departure Date` is removed.
 
-`Check Vessel Name` is relevant for **Pending Shipment**.
+### Check Vessel Name
 
-It should not remain after the Booking has shipped.
+**Trigger:** Vessel Name is modified.
 
-**Status: In Progress.**
+The workflow calls `BOOKING_Check_Vessel_Name`.
 
-### Cancelled
+The function retrieves the LIVE Booking and checks the current Stage.
 
-When Stage is `Cancelled`, all three managed tags should be removed:
+`Check Vessel Name` is relevant when the Booking is in **Open or Pending Shipment**.
 
-- `Check Arrival Date`
-- `Check Departure Date`
-- `Check Vessel Name`
+When the Booking moves out of **Open or Pending Shipment**, `Check Vessel Name` is removed.
 
-Unrelated CRM tags must be preserved.
+### Field Check Configuration
 
-**Status: Requirement defined / implementation pending.**
+| Field | Trigger | Applicable Stages | Action |
+|---|---|---|---|
+| Arrival Date | Arrival Date modified | Shipped and later stages | Add **Check Arrival Date Tag** |
+| Departure Date | Departure Date modified | Pending Shipment | Add **Check Departure Date Tag** |
+| Vessel Name | Vessel Name modified | Open, Pending Shipment | Add **Check Vessel Name Tag** |
+
+### Tag Removal
+
+| Tag | Removal condition |
+|---|---|
+| `Check Arrival Date` | Booking moves out of applicable Shipped/later stages |
+| `Check Departure Date` | Booking moves out of Pending Shipment |
+| `Check Vessel Name` | Booking moves out of Open or Pending Shipment |
+
+Only the relevant check tag is removed. Other existing Booking tags remain untouched.
 
 ## TPD Pending — Booking Trigger
 
