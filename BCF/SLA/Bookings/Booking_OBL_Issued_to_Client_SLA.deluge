@@ -1,0 +1,65 @@
+void automation.Booking_OBL_Issued_to_Client_SLA(String booking_id,String severity)
+{
+try
+{
+	bookingId = booking_id.toString().trim();
+	requestedSeverity = severity.toString().trim();
+
+	if(!requestedSeverity.equalsIgnoreCase("Delayed") && !requestedSeverity.equalsIgnoreCase("Critical"))
+	{
+		return;
+	}
+
+	booking = zoho.crm.getRecordById("Deals",bookingId.toLong());
+
+	if(booking == null)
+	{
+		return;
+	}
+
+	currentStage = booking.get("Stage");
+
+	if(currentStage == null || !currentStage.toString().trim().equalsIgnoreCase("OBL Issued to Client"))
+	{
+		return;
+	}
+
+	existingTags = booking.get("Tag");
+
+	if(existingTags == null)
+	{
+		existingTags = List();
+	}
+
+	tagExists = false;
+
+	for each tag in existingTags
+	{
+		tagName = tag.get("name");
+
+		if(tagName != null && tagName.toString().trim().equalsIgnoreCase(requestedSeverity))
+		{
+			tagExists = true;
+			break;
+		}
+	}
+
+	if(tagExists)
+	{
+		return;
+	}
+
+	newTag = Map();
+	newTag.put("name",requestedSeverity);
+	existingTags.add(newTag);
+
+	updateMap = Map();
+	updateMap.put("Tag",existingTags);
+
+	zoho.crm.updateRecord("Deals",bookingId.toLong(),updateMap);
+}
+catch(e)
+{
+	info "Booking_OBL_Issued_to_Client_SLA ERROR | Booking: " + booking_id + " | Error: " + e.toString();
+}
+}
