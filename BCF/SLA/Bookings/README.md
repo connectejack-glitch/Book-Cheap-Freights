@@ -165,3 +165,19 @@ If the linked Clearance is already `Pending Documents Delivery` or `Cleared`, no
 - Booking SLA tag removal uses the established CRM `remove_tags` action with the `zoho_crm` connection.
 - Do not change the Booking Stage through SLA functions.
 - For tag removal, use the proven CRM tag action rather than relying on `zoho.crm.updateRecord()` to remove CRM tags.
+
+
+## Booking Stage SLA Progress
+
+| Booking Stage | Delayed | Critical | Anchor | Status |
+|---|---:|---:|---|---|
+| Unallocated | 4 days | 8 days | Record creation | Complete |
+| Open | 7 days | 14 days | Stage entry | Complete |
+| Pending Shipment | 9 days | 18 days | Last Container Gating In / Gate-In Completion Date | Pending |
+| Shipped | 9 days | 15 days | Stage entry | Complete |
+| Paid | 3 days | 7 days | Stage entry | Complete |
+| Verified Copy Approved | 2 days | 7 days | Stage entry | Complete |
+| OBL Collected / TPD Pending | 4 days | 7 days | Booking enters OBL Collected | Complete |
+| OBL Issued to Client | 3 days | 7 days | Stage entry | Complete |
+
+**Remaining:** Pending Shipment is the only Booking Stage SLA still to be implemented. Its anchor is the last container gating-in / gate-in completion date.
